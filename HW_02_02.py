@@ -21,55 +21,50 @@ def optimize_printing(print_jobs: List[Dict], constraints: Dict) -> Dict:
     Оптимізує чергу 3D-друку згідно з пріоритетами та обмеженнями принтера
 
     Args:
-        print_jobs: Список завдань на друк (словники з ключами id, volume, priority, print_time)
-        constraints: Обмеження принтера (словник з ключами max_volume та max_items)
+        print_jobs: Список завдань на друк
+        constraints: Обмеження принтера
 
     Returns:
-        Dict: словник з оптимальним порядком друку (print_order) та загальним часом друку (total_time)
+        Dict з порядком друку та загальним часом
     """
-    # Перетворення вхідних даних у відповідні dataclass об’єкти
+    # Перетворюємо вхідні дані у dataclass об'єкти
     jobs = [PrintJob(**job) for job in print_jobs]
     printer = PrinterConstraints(**constraints)
 
-    # Сортуємо завдання за пріоритетом (чим менше значення, тим вищий пріоритет)
-    # При однакових пріоритетах зберігається початковий порядок
+    # Сортуємо завдання за пріоритетом
     jobs.sort(key=lambda job: job.priority)
 
-    print_order = []  # список для збереження порядку друку (ідентифікатори завдань)
-    total_time = 0  # загальний час друку в хвилинах
+    print_order = []
+    total_print_time = 0
 
-    current_group = []  # поточна група завдань для одночасного друку
-    current_group_volume = 0  # сумарний об'єм поточної групи
+    current_group = []
+    current_group_volume = 0
 
     for job in jobs:
-        # Перевірка чи можна додати завдання до поточної групи:
-        # 1. Чи не перевищено максимальну кількість завдань у групі?
-        # 2. Чи не перевищується при додаванні завдання максимальний допустимий об'єм?
-        if (len(current_group) < printer.max_items and
-                current_group_volume + job.volume <= printer.max_volume):
+        # Перевіряємо чи можна додати завдання до поточної групи:
+        if (len(current_group) < printer.max_items                            # 1. Не перевищено максимальну кількість завдань у групі?
+                and current_group_volume + job.volume <= printer.max_volume): # 2. Не перевищено максимально допустимий об'єм?
             current_group.append(job)
             current_group_volume += job.volume
-        else:
-            # Якщо завдання не може бути додано в поточну групу,
-            # «друкуємо» поточну групу:
-            # Час друку групи = максимальний час серед завдань у групі
+        else: # Якщо завдання не може бути додано в поточну групу, друкуємо поточну групу:
+            # Час друку групи = максимальний час завдань у групі
             group_time = max(j.print_time for j in current_group)
-            total_time += group_time
+            total_print_time += group_time
             # Записуємо порядок виконання завдань з поточної групи
             print_order.extend([j.id for j in current_group])
             # Починаємо нову групу із завдання, яке не помістилося
             current_group = [job]
             current_group_volume = job.volume
 
-    # Якщо після обходу залишилися завдання у групі, обробляємо їх
+    # Обробляємо завдання, які залишилися у групі після обходу
     if current_group:
         group_time = max(j.print_time for j in current_group)
-        total_time += group_time
+        total_print_time += group_time
         print_order.extend([j.id for j in current_group])
 
     return {
         "print_order": print_order,
-        "total_time": total_time
+        "total_time": total_print_time
     }
 
 
@@ -89,7 +84,7 @@ def test_printing_optimization():
         {"id": "M3", "volume": 120, "priority": 3, "print_time": 150}  # особистий проєкт
     ]
 
-    # Тест 3: Перевищення обмежень об'єму (неможливість групування завдань)
+    # Тест 3: Перевищення обмежень об'єму
     test3_jobs = [
         {"id": "M1", "volume": 250, "priority": 1, "print_time": 180},
         {"id": "M2", "volume": 200, "priority": 1, "print_time": 150},
@@ -119,3 +114,4 @@ def test_printing_optimization():
 
 if __name__ == "__main__":
     test_printing_optimization()
+
